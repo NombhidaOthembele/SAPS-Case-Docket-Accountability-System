@@ -1,182 +1,98 @@
-# SAPS Case Docket Accountability and Registration Integrity System
+# SAPS Case Docket Accountability System
 
-A software system to improve accountability, traceability, and integrity in the registration and management of South African Police Service (SAPS) case dockets.
+This project implements the SAPS six W's acceptance criteria and ensures that an investigator update is captured at every step of the workflow.
 
-## Project Overview
+## What is included
 
-**Institution:** Durban University of Technology  
-**Project Code:** SODM401 / SFEN301  
-**Year:** 2026  
-**Focus:** Unlawful Refusals, Accountability Gaps, Case Registration and Docket Traceability
+- Case registration with all six W's:
+  - Who
+  - What
+  - When
+  - Where
+  - Why
+  - How
+- Mandatory investigator update on every step
+- Workflow updates for registration, allocation, investigation, transfer, commander review and resolution
+- Station Commander acceptance check that blocks approval if any earlier event is missing the six W's or investigator update
+- Browser-based front-end with localStorage persistence
+- Simple API validation on the backend
 
-### Problem Statement
-
-The SAPS case-docket process faces challenges with:
-- Unlawful refusals where victims are improperly turned away from registering complaints
-- Accountability gaps where complainants cannot track docket movement or responsibility
-- Inconsistent registration and transfer procedures
-- Difficulty establishing who performed actions and when
-
-### Solution Concept
-
-An accountability-focused digital platform that maintains a traceable audit trail of:
-- Case registration and responsible officials
-- Docket access and movement
-- Status changes and updates
-- Final resolution and outcome
-- Escalation and complaint linkage
-
-## Project Structure
-
-```
-.
-├── docs/                          # Documentation
-│   ├── requirements/              # Requirements specifications
-│   ├── architecture/              # System architecture diagrams
-│   └── research/                  # Literature review & research findings
-├── src/                           # Source code
-│   ├── backend/                   # Backend application
-│   ├── frontend/                  # Frontend application
-│   ├── database/                  # Database schemas & migrations
-│   └── api/                       # API endpoints
-├── tests/                         # Test suites
-├── deployment/                    # Deployment & configuration
-└── README.md                      # This file
-```
-
-## Core Features
-
-### 1. Authentication & Authorization
-- Individual user accounts with role-based access control
-- Secure authentication mechanism
-- User role management (CSC Official, Detective, Commander, etc.)
-
-### 2. Case Management
-- Case registration with unique CAS reference
-- Officer identification for all actions
-- Automatic timestamping of all operations
-- Case status tracking through lifecycle
-
-### 3. Docket Tracking
-- Docket allocation to responsible officials
-- Docket transfer logging between units/stations
-- Transfer acknowledgement recording
-- Access logging for audit purposes
-
-### 4. Accountability Trail
-- Chronological audit log of all case actions
-- Protected audit records against tampering
-- User attribution for every action
-- Timestamp verification
-
-### 5. Reporting & Dashboards
-- Management dashboards with key metrics
-- Exception reporting for pending/overdue cases
-- Accountability indicators and trends
-- Customizable report generation
-
-### 6. Complaint Linkage
-- Link service complaints to relevant cases
-- Escalation tracking and status
-- Complaint resolution workflow
-- Feedback loop to original complainants
-
-## Technology Stack
-
-### Backend
-- **Framework:** Node.js/Express or Python/Django/FastAPI
-- **Database:** PostgreSQL (relational, ACID compliance)
-- **Cache:** Redis (for performance optimization)
-- **Message Queue:** RabbitMQ/Kafka (for async operations)
-
-### Frontend
-- **Framework:** React or Vue.js
-- **UI Library:** Material-UI or Ant Design
-- **State Management:** Redux or Vuex
-- **Testing:** Jest, React Testing Library
-
-### Infrastructure
-- **Containerization:** Docker
-- **Orchestration:** Kubernetes
-- **CI/CD:** GitHub Actions
-- **Logging:** ELK Stack
-- **Monitoring:** Prometheus & Grafana
-
-### Security
-- **Authentication:** JWT tokens
-- **Encryption:** AES-256 for data at rest, TLS for data in transit
-- **Access Control:** OAuth 2.0 / OpenID Connect
-- **Secrets Management:** HashiCorp Vault
-
-## Requirements Classification
-
-### Functional Requirements (FR01-FR17)
-- User authentication and role management
-- Case registration with unique references
-- Officer identification for actions
-- Timestamping of significant events
-- Docket allocation and tracking
-- Access logging and auditability
-- Case status updates
-- Docket transfer recording with acknowledgement
-- Escalation linkage
-- Resolution recording
-- Audit trail maintenance
-- Management reports
-- Search functionality
-- Notifications
-
-### Non-Functional Requirements (NFR01-NFR12)
-- Security and access control
-- Authentication and authorization
-- Auditability and tamper-resistance
-- Availability (99.5% uptime target)
-- Performance (< 2 second response time)
-- Usability and user training
-- Reliability and data integrity
-- Privacy (POPIA compliance)
-- Maintainability and modularity
-- Traceability
-- Backup and disaster recovery
-
-## Getting Started
-
-### Prerequisites
-- Node.js 16+ / Python 3.9+
-- PostgreSQL 12+
-- Docker & Docker Compose
-- Git
-
-### Installation
+## Run locally
 
 ```bash
-# Clone repository
-git clone https://github.com/NombhidaOthembele/SAPS-Case-Docket-Accountability-System.git
-cd SAPS-Case-Docket-Accountability-System
-
-# Install dependencies
 npm install
-
-# Setup environment variables
-cp .env.example .env
-
-# Run database migrations
-npm run migrate
-
-# Start development server
 npm start
 ```
 
-## Contact
+Then open:
 
-**Email:** nombhidaothembele@gmail.com  
-**Institution:** Durban University of Technology, 79 Steve Biko Road, Durban, 4001
+http://localhost:3000
 
-## License
+## Test the API
 
-MIT License - see LICENSE file for details.
+### 1) Register a case
 
----
+```bash
+curl -X POST http://localhost:3000/api/cases/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "station": "Durban Central SAPS",
+    "complainantName": "Jane Doe",
+    "offenceDetails": "Theft and malicious damage",
+    "actorId": "csc-officer-01",
+    "sixWs": {
+      "who": "Community Service Centre Official 01",
+      "what": "The case was reported and registered",
+      "when": "2026-09-18T09:00:00",
+      "where": "Durban Central SAPS",
+      "why": "The complainant reported a theft incident",
+      "how": "Statement captured and CAS record created"
+    },
+    "investigatorUpdate": "Initial statement captured and docket entered into the case system."
+  }'
+```
 
-**Last Updated:** August 31, 2026  
-**Status:** Active Development
+### 2) Add a workflow update
+
+```bash
+curl -X POST http://localhost:3000/api/cases/CASE-123/updates \
+  -H "Content-Type: application/json" \
+  -d '{
+    "step": "investigation",
+    "actorId": "investigator-01",
+    "sixWs": {
+      "who": "Detective Investigator 01",
+      "what": "Investigative follow-up initiated",
+      "when": "2026-09-18T10:00:00",
+      "where": "Durban Central SAPS",
+      "why": "Begin crime investigation checks",
+      "how": "Witness interview and evidence review"
+    },
+    "investigatorUpdate": "Witness interview completed and evidence logged."
+  }'
+```
+
+### 3) Commander acceptance
+
+```bash
+curl -X POST http://localhost:3000/api/cases/CASE-123/commander-acceptance \
+  -H "Content-Type: application/json" \
+  -d '{
+    "actorId": "station-commander-01",
+    "sixWs": {
+      "who": "Station Commander",
+      "what": "Final review and approval",
+      "when": "2026-09-18T11:00:00",
+      "where": "Durban Central SAPS",
+      "why": "Case is ready for supervisory acceptance",
+      "how": "Review of case timeline and evidence"
+    },
+    "investigatorUpdate": "All required steps completed and approved for commander review."
+  }'
+```
+
+## Notes
+
+- The browser app stores data in `localStorage`, so the information persists on refresh in the same browser.
+- The backend uses in-memory storage only; this is a prototype for classroom validation and demonstration.
+- To make this production-ready, replace the in-memory storage with PostgreSQL and implement secure authentication.

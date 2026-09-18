@@ -1,26 +1,43 @@
-/**
- * Docket Management Routes
- */
-
 const express = require('express');
 const router = express.Router();
 
-// Transfer docket
+const SIX_WS = ['who', 'what', 'when', 'where', 'why', 'how'];
+
 router.post('/transfer', (req, res) => {
-  // Docket transfer logic to be implemented
-  res.json({ message: 'Docket transfer endpoint - to be implemented' });
+  const { sixWs, investigatorUpdate } = req.body;
+  const missing = SIX_WS.filter((key) => !sixWs || !String(sixWs[key] || '').trim());
+
+  if (missing.length || !String(investigatorUpdate || '').trim()) {
+    return res.status(400).json({
+      error: 'Transfer requires all six W\'s and an investigator update.',
+      missing
+    });
+  }
+
+  res.status(201).json({
+    message: 'Docket transfer recorded',
+    transfer: {
+      ...req.body,
+      recordedAt: new Date().toISOString()
+    }
+  });
 });
 
-// Acknowledge transfer
 router.post('/:id/acknowledge', (req, res) => {
-  // Transfer acknowledgement logic to be implemented
-  res.json({ message: 'Transfer acknowledgement endpoint - to be implemented' });
+  res.status(200).json({
+    message: 'Transfer acknowledged',
+    docketId: req.params.id,
+    acknowledgedAt: new Date().toISOString()
+  });
 });
 
-// Get docket details
 router.get('/:id', (req, res) => {
-  // Docket retrieval logic to be implemented
-  res.json({ message: 'Docket retrieval endpoint - to be implemented' });
+  res.json({
+    docketId: req.params.id,
+    message: 'Docket details endpoint.',
+    sixWsRequired: true,
+    investigatorUpdateRequired: true
+  });
 });
 
 module.exports = router;

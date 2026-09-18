@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SAPS Case Docket Accountability</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <header class="header">
+        <div>
+          <p class="eyebrow">DUT Project 2026</p>
+          <h1>SAPS Case Docket Accountability & Registration Integrity</h1>
+        </div>
+      </header>
+
+      <main class="layout">
+        <section class="panel">
+          <h2>Register Case</h2>
+          <form id="case-form">
+            <div class="grid two">
+              <label>
+                Station
+                <input type="text" name="station" placeholder="Durban Central SAPS" required />
+              </label>
+              <label>
+                Complainant Name
+                <input type="text" name="complainantName" placeholder="Reporter's name" />
+              </label>
+            </div>
+
+            <label>
+              Nature of offence / details
+              <textarea name="offenceDetails" rows="3" placeholder="Case details" required></textarea>
+            </label>
+
+            <h3>Six W's Acceptance Criteria</h3>
+            <div class="grid two">
+              <label>Who <input type="text" name="who" /></label>
+              <label>What <input type="text" name="what" /></label>
+              <label>When <input type="datetime-local" name="when" /></label>
+              <label>Where <input type="text" name="where" /></label>
+              <label>Why <input type="text" name="why" /></label>
+              <label>How <input type="text" name="how" /></label>
+            </div>
+
+            <label>
+              Investigator Update
+              <textarea name="investigatorUpdate" rows="3" placeholder="Record the investigator update for this step" required></textarea>
+            </label>
+
+            <button type="submit">Register case</button>
+          </form>
+        </section>
+
+        <section class="panel">
+          <h2>Workflow Steps</h2>
+          <form id="step-form">
+            <label>
+              Case ID
+              <select id="case-select" name="caseId"></select>
+            </label>
+
+            <label>
+              Workflow step
+              <select name="step">
+                <option value="registration">Registration</option>
+                <option value="allocation">Allocation</option>
+                <option value="investigation">Investigation</option>
+                <option value="transfer">Transfer</option>
+                <option value="commander_review">Commander Review</option>
+                <option value="resolution">Resolution</option>
+              </select>
+            </label>
+
+            <div class="grid two">
+              <label>Who <input type="text" name="stepWho" /></label>
+              <label>What <input type="text" name="stepWhat" /></label>
+              <label>When <input type="datetime-local" name="stepWhen" /></label>
+              <label>Where <input type="text" name="stepWhere" /></label>
+              <label>Why <input type="text" name="stepWhy" /></label>
+              <label>How <input type="text" name="stepHow" /></label>
+            </div>
+
+            <label>
+              Investigator Update
+              <textarea name="stepInvestigatorUpdate" rows="3" placeholder="The investigator update must be recorded at every stage" required></textarea>
+            </label>
+
+            <button type="submit">Add workflow update</button>
+          </form>
+
+          <form id="commander-form" class="mt">
+            <h3>Station Commander Acceptance</h3>
+            <select id="commander-case-select" name="caseId"></select>
+            <div class="grid two">
+              <label>Who <input type="text" name="commanderWho" /></label>
+              <label>What <input type="text" name="commanderWhat" /></label>
+              <label>When <input type="datetime-local" name="commanderWhen" /></label>
+              <label>Where <input type="text" name="commanderWhere" /></label>
+              <label>Why <input type="text" name="commanderWhy" /></label>
+              <label>How <input type="text" name="commanderHow" /></label>
+            </div>
+            <label>
+              Investigator Update
+              <textarea name="commanderInvestigatorUpdate" rows="3" placeholder="Commander acceptance requires an investigator update" required></textarea>
+            </label>
+            <button type="submit">Accept case</button>
+          </form>
+        </section>
+      </main>
+
+      <section class="panel mt">
+        <h2>Case Timeline</h2>
+        <div id="cases-container"></div>
+      </section>
+    </div>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
