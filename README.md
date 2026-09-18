@@ -1,98 +1,27 @@
-# SAPS Case Docket Accountability System
+# Updated SAPS Case Accountability Portal
 
-This project implements the SAPS six W's acceptance criteria and ensures that an investigator update is captured at every step of the workflow.
+The browser prototype now follows the requested operational flow:
 
-## What is included
+1. **Officer sign-in and OTP verification** – role-aware login screen with a prototype OTP. Real SMS/email delivery must be integrated with an approved identity provider before production use.
+2. **Victim statement capture** – the officer records the statement and six W's. A unique CAS number is generated immediately.
+3. **Station Commander review** – newly registered cases appear in the commander's queue. Approval requires a complete six-W record and decision note.
+4. **Investigator workbench** – approved cases are routed to investigators and every progress update is recorded with the six W's.
+5. **Case analysis** – dashboard statistics show case status, station distribution, accountable events and case health.
+6. **Accountability trail** – each case action contains the actor, timestamp, action and supporting detail.
 
-- Case registration with all six W's:
-  - Who
-  - What
-  - When
-  - Where
-  - Why
-  - How
-- Mandatory investigator update on every step
-- Workflow updates for registration, allocation, investigation, transfer, commander review and resolution
-- Station Commander acceptance check that blocks approval if any earlier event is missing the six W's or investigator update
-- Browser-based front-end with localStorage persistence
-- Simple API validation on the backend
-
-## Run locally
+## Run
 
 ```bash
 npm install
 npm start
 ```
 
-Then open:
+Open `http://localhost:3000`.
 
-http://localhost:3000
+### Prototype credentials
 
-## Test the API
+Any identity and password can be entered. Use the displayed OTP `482913` to complete the demo login. Select a role to view that role's workspace.
 
-### 1) Register a case
+## Important security note
 
-```bash
-curl -X POST http://localhost:3000/api/cases/register \
-  -H "Content-Type: application/json" \
-  -d '{
-    "station": "Durban Central SAPS",
-    "complainantName": "Jane Doe",
-    "offenceDetails": "Theft and malicious damage",
-    "actorId": "csc-officer-01",
-    "sixWs": {
-      "who": "Community Service Centre Official 01",
-      "what": "The case was reported and registered",
-      "when": "2026-09-18T09:00:00",
-      "where": "Durban Central SAPS",
-      "why": "The complainant reported a theft incident",
-      "how": "Statement captured and CAS record created"
-    },
-    "investigatorUpdate": "Initial statement captured and docket entered into the case system."
-  }'
-```
-
-### 2) Add a workflow update
-
-```bash
-curl -X POST http://localhost:3000/api/cases/CASE-123/updates \
-  -H "Content-Type: application/json" \
-  -d '{
-    "step": "investigation",
-    "actorId": "investigator-01",
-    "sixWs": {
-      "who": "Detective Investigator 01",
-      "what": "Investigative follow-up initiated",
-      "when": "2026-09-18T10:00:00",
-      "where": "Durban Central SAPS",
-      "why": "Begin crime investigation checks",
-      "how": "Witness interview and evidence review"
-    },
-    "investigatorUpdate": "Witness interview completed and evidence logged."
-  }'
-```
-
-### 3) Commander acceptance
-
-```bash
-curl -X POST http://localhost:3000/api/cases/CASE-123/commander-acceptance \
-  -H "Content-Type: application/json" \
-  -d '{
-    "actorId": "station-commander-01",
-    "sixWs": {
-      "who": "Station Commander",
-      "what": "Final review and approval",
-      "when": "2026-09-18T11:00:00",
-      "where": "Durban Central SAPS",
-      "why": "Case is ready for supervisory acceptance",
-      "how": "Review of case timeline and evidence"
-    },
-    "investigatorUpdate": "All required steps completed and approved for commander review."
-  }'
-```
-
-## Notes
-
-- The browser app stores data in `localStorage`, so the information persists on refresh in the same browser.
-- The backend uses in-memory storage only; this is a prototype for classroom validation and demonstration.
-- To make this production-ready, replace the in-memory storage with PostgreSQL and implement secure authentication.
+This is a classroom prototype and uses browser `localStorage`; it does not send real OTPs or provide production authentication. It also uses a restrained text watermark rather than copying an official SAPS logo asset. An authorised SAPS brand asset and identity-provider integration should be supplied and approved before deployment.

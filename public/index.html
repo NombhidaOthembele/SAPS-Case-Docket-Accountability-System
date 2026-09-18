@@ -1,122 +1,52 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SAPS Case Docket Accountability</title>
-    <link rel="stylesheet" href="/styles.css" />
-  </head>
-  <body>
-    <div class="container">
-      <header class="header">
-        <div>
-          <p class="eyebrow">DUT Project 2026</p>
-          <h1>SAPS Case Docket Accountability & Registration Integrity</h1>
-        </div>
-      </header>
-
-      <main class="layout">
-        <section class="panel">
-          <h2>Register Case</h2>
-          <form id="case-form">
-            <div class="grid two">
-              <label>
-                Station
-                <input type="text" name="station" placeholder="Durban Central SAPS" required />
-              </label>
-              <label>
-                Complainant Name
-                <input type="text" name="complainantName" placeholder="Reporter's name" />
-              </label>
-            </div>
-
-            <label>
-              Nature of offence / details
-              <textarea name="offenceDetails" rows="3" placeholder="Case details" required></textarea>
-            </label>
-
-            <h3>Six W's Acceptance Criteria</h3>
-            <div class="grid two">
-              <label>Who <input type="text" name="who" /></label>
-              <label>What <input type="text" name="what" /></label>
-              <label>When <input type="datetime-local" name="when" /></label>
-              <label>Where <input type="text" name="where" /></label>
-              <label>Why <input type="text" name="why" /></label>
-              <label>How <input type="text" name="how" /></label>
-            </div>
-
-            <label>
-              Investigator Update
-              <textarea name="investigatorUpdate" rows="3" placeholder="Record the investigator update for this step" required></textarea>
-            </label>
-
-            <button type="submit">Register case</button>
-          </form>
-        </section>
-
-        <section class="panel">
-          <h2>Workflow Steps</h2>
-          <form id="step-form">
-            <label>
-              Case ID
-              <select id="case-select" name="caseId"></select>
-            </label>
-
-            <label>
-              Workflow step
-              <select name="step">
-                <option value="registration">Registration</option>
-                <option value="allocation">Allocation</option>
-                <option value="investigation">Investigation</option>
-                <option value="transfer">Transfer</option>
-                <option value="commander_review">Commander Review</option>
-                <option value="resolution">Resolution</option>
-              </select>
-            </label>
-
-            <div class="grid two">
-              <label>Who <input type="text" name="stepWho" /></label>
-              <label>What <input type="text" name="stepWhat" /></label>
-              <label>When <input type="datetime-local" name="stepWhen" /></label>
-              <label>Where <input type="text" name="stepWhere" /></label>
-              <label>Why <input type="text" name="stepWhy" /></label>
-              <label>How <input type="text" name="stepHow" /></label>
-            </div>
-
-            <label>
-              Investigator Update
-              <textarea name="stepInvestigatorUpdate" rows="3" placeholder="The investigator update must be recorded at every stage" required></textarea>
-            </label>
-
-            <button type="submit">Add workflow update</button>
-          </form>
-
-          <form id="commander-form" class="mt">
-            <h3>Station Commander Acceptance</h3>
-            <select id="commander-case-select" name="caseId"></select>
-            <div class="grid two">
-              <label>Who <input type="text" name="commanderWho" /></label>
-              <label>What <input type="text" name="commanderWhat" /></label>
-              <label>When <input type="datetime-local" name="commanderWhen" /></label>
-              <label>Where <input type="text" name="commanderWhere" /></label>
-              <label>Why <input type="text" name="commanderWhy" /></label>
-              <label>How <input type="text" name="commanderHow" /></label>
-            </div>
-            <label>
-              Investigator Update
-              <textarea name="commanderInvestigatorUpdate" rows="3" placeholder="Commander acceptance requires an investigator update" required></textarea>
-            </label>
-            <button type="submit">Accept case</button>
-          </form>
-        </section>
-      </main>
-
-      <section class="panel mt">
-        <h2>Case Timeline</h2>
-        <div id="cases-container"></div>
-      </section>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SAPS Case Accountability Portal</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div class="saps-watermark" aria-hidden="true">SAPS</div>
+  <div id="login-view" class="login-shell">
+    <div class="login-card">
+      <div class="brand brand-centered"><span class="brand-mark">SAPS</span><span>CASE ACCOUNTABILITY PORTAL</span></div>
+      <p class="eyebrow">Durban University of Technology · Prototype</p>
+      <h1>Secure officer sign in</h1>
+      <p class="muted">Access is restricted to authorised SAPS personnel. Every action is attributed to an individual account.</p>
+      <form id="login-form">
+        <label>Work email or officer ID<input name="identity" placeholder="officer@saps.gov.za" required /></label>
+        <label>Password<input name="password" type="password" placeholder="Enter password" required /></label>
+        <label>Role<select name="role"><option value="officer">Community Service Centre Officer</option><option value="commander">Station Commander</option><option value="investigator">Investigator</option><option value="analyst">Management Analyst</option></select></label>
+        <button class="primary" type="submit">Continue to verification</button>
+      </form>
+      <div id="otp-panel" class="otp-panel hidden">
+        <div class="notice"><strong>Prototype OTP:</strong> <span id="demo-otp">482913</span><br><small>In production this code is delivered through the approved SAPS identity provider.</small></div>
+        <form id="otp-form"><label>One-time password<input name="otp" inputmode="numeric" maxlength="6" placeholder="6-digit OTP" required /></label><button class="primary" type="submit">Verify and sign in</button></form>
+      </div>
+      <p id="login-message" class="form-message"></p>
     </div>
+  </div>
 
-    <script src="/app.js"></script>
-  </body>
+  <div id="app-view" class="app-shell hidden">
+    <aside class="sidebar">
+      <div class="brand"><span class="brand-mark">SAPS</span><span>ACCOUNTABILITY</span></div>
+      <div class="user-card"><div class="avatar" id="user-avatar">OF</div><div><strong id="user-name">Officer</strong><small id="user-role">Role</small></div></div>
+      <nav id="navigation">
+        <button data-page="dashboard" class="nav-item active">⌂ <span>Overview</span></button>
+        <button data-page="register" class="nav-item officer-only">＋ <span>Register statement</span></button>
+        <button data-page="review" class="nav-item commander-only">✓ <span>Commander review</span></button>
+        <button data-page="investigation" class="nav-item investigator-only">◉ <span>Investigation queue</span></button>
+        <button data-page="analytics" class="nav-item analyst-only">▥ <span>Case analysis</span></button>
+        <button data-page="audit" class="nav-item">≡ <span>Accountability trail</span></button>
+      </nav>
+      <button id="logout" class="logout">⇥ Sign out</button>
+    </aside>
+    <main class="main-content">
+      <header class="topbar"><div><p class="eyebrow" id="page-kicker">SECURE WORKSPACE</p><h2 id="page-title">Operations overview</h2></div><div class="topbar-actions"><span class="secure-status">● Secure session</span><span id="clock"></span></div></header>
+      <div id="page-content"></div>
+    </main>
+  </div>
+  <script src="/app.js"></script>
+</body>
 </html>
