@@ -18,6 +18,9 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
+// Authentication must be registered before the static frontend so the login
+// screen can request and verify OTPs through the backend.
+app.use('/api/auth', require('./routes/auth'));
 app.use('/api/cases', require('./routes/cases'));
 app.use('/api/dockets', require('./routes/dockets'));
 
