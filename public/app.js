@@ -10,6 +10,20 @@ const saveCases = (items) => localStorage.setItem(STORAGE_KEY, JSON.stringify(it
 const session = () => JSON.parse(localStorage.getItem(SESSION_KEY) || 'null');
 const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
 
+function sendJson(url, data) {
+  return fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  }).then(async (response) => {
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload.error || 'Request failed.');
+    }
+    return payload;
+  });
+}
+
 function makeId(prefix) { return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`; }
 function stamp() { return new Date().toISOString(); }
 function sixWsFrom(form, prefix = '') { return Object.fromEntries(W_FIELDS.map((key) => [key, form.get(`${prefix}${key}`) || ''])); }
@@ -32,7 +46,13 @@ function signIn(identity, role) {
   $('#login-view').classList.add('hidden'); $('#app-view').classList.remove('hidden');
   $('#user-name').textContent = identity; $('#user-role').textContent = role.replace('_', ' ').toUpperCase();
   $('#user-avatar').textContent = identity.slice(0, 2).toUpperCase();
-  document.querySelectorAll('.nav-item').forEach((item) => item.classList.toggle('hidden', item.classList.contains(`${role}-only` ) || (!item.classList.contains(`${role}-only`) && ['officer-only','commander-only','investigator-only','analyst-only'].some((c) => item.classList.contains(c)) && !item.classList.contains(`${role}-only`))));
+  const navButtons = document.querySelectorAll('.nav-item');
+  navButtons.forEach((item) => {
+    const isRoleSpecific = ['officer-only','commander-only','investigator-only','analyst-only'].some((cls) => item.classList.contains(cls));
+    const allowed = !isRoleSpecific || item.classList.contains(`${role}-only`);
+    item.classList.toggle('hidden', !allowed);
+    if (item.classList.contains(`${role}-only`) || !isRoleSpecific) item.classList.remove('hidden');
+  });
   render('dashboard');
 }
 
@@ -70,11 +90,9 @@ function renderAudit() { const audit = getCases().flatMap((item) => item.audit.m
 
 function bindPage(page) {
   document.querySelectorAll('[data-go]').forEach((button) => button.addEventListener('click', () => render(button.dataset.go)));
-  const current = session();
-  if (page === 'register') $('#register-form')?.addEventListener('submit', registerCase);
   document.querySelectorAll('.review-form').forEach((form) => form.addEventListener('submit', commanderReview));
   document.querySelectorAll('.investigation-form').forEach((form) => form.addEventListener('submit', investigatorUpdate));
-  if (page === 'analytics' && current.role !== 'analyst') return;
+  if (page === 'register') $('#register-form')?.addEventListener('submit', registerCase);
 }
 
 function registerCase(event) { event.preventDefault(); const form = new FormData(event.target); const ws = sixWsFrom(form); try { const item = { id: makeId('CASE'), casNumber: `CAS-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`, station: form.get('station'), officerReference: form.get('officerReference'), complainantName: form.get('complainantName'), contact: form.get('contact'), offenceDetails: form.get('offenceDetails'), status: 'awaiting_commander', commanderAccepted: false, createdAt: stamp(), events: [eventFrom({ step: 'registration', ws, update: form.get('investigatorUpdate'), actor: session().identity, action: 'CASE_REGISTERED' })], audit: [] }; addAudit(item, 'CASE_REGISTERED', session().identity, { details: 'Victim statement captured and CAS number generated.' }); const items = getCases(); items.push(item); saveCases(items); event.target.reset(); $('#register-message').textContent = `Case ${item.casNumber} created and sent to the Station Commander.`; $('#register-message').className = 'form-message success'; } catch (error) { $('#register-message').textContent = error.message; $('#register-message').className = 'form-message error'; } }
@@ -83,8 +101,59 @@ function commanderReview(event) { event.preventDefault(); const form = new FormD
 
 function investigatorUpdate(event) { event.preventDefault(); const form = new FormData(event.target); const items = getCases(); const item = items.find((entry) => entry.id === event.target.dataset.caseId); try { item.investigationTeam = form.get('lead'); const ws = sixWsFrom(form, 'investigation'); item.events.push(eventFrom({ step: 'investigation', ws, update: form.get('investigatorUpdate'), actor: session().identity, action: 'INVESTIGATOR_UPDATE' })); item.status = 'investigation'; addAudit(item, 'INVESTIGATOR_UPDATE', session().identity, { details: form.get('investigatorUpdate') }); saveCases(items); render('investigation'); } catch (error) { const message = event.target.querySelector('.form-message'); message.textContent = error.message; message.className = 'form-message error'; } }
 
-$('#login-form').addEventListener('submit', (event) => { event.preventDefault(); const form = new FormData(event.target); $('#otp-panel').classList.remove('hidden'); $('#login-message').textContent = 'Verification code issued. Check your approved device.'; window.pendingLogin = { identity: form.get('identity'), role: form.get('role') }; });
-$('#otp-form').addEventListener('submit', (event) => { event.preventDefault(); const code = new FormData(event.target).get('otp'); if (code !== OTP) { $('#login-message').textContent = 'Invalid OTP. Try the prototype code shown above.'; $('#login-message').className = 'form-message error'; return; } signIn(window.pendingLogin.identity, window.pendingLogin.role); });
+$('#login-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const form = new FormData(event.target);
+  const identity = form.get('identity');
+  const phone = form.get('phone');
+  const role = form.get('role');
+  const password = form.get('password');
+
+  if (!identity || !phone || !password || !role) {
+    $('#login-message').textContent = 'Please complete all fields.';
+    $('#login-message').className = 'form-message error';
+    return;
+  }
+
+  try {
+    await sendJson('/api/auth/request-otp', { identity, phone, role, password });
+    window.pendingLogin = { identity, phone, role, password };
+    $('#otp-panel').classList.remove('hidden');
+    $('#login-message').textContent = 'Verification SMS sent successfully. Use the code shown below in demo mode or the one sent to your phone in live mode.';
+    $('#login-message').className = 'form-message success';
+  } catch (error) {
+    $('#login-message').textContent = error.message;
+    $('#login-message').className = 'form-message error';
+  }
+});
+
+$('#otp-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const form = new FormData(event.target);
+  const otp = form.get('otp');
+  const loginData = window.pendingLogin;
+
+  if (!loginData) {
+    $('#login-message').textContent = 'Please request an OTP before verifying.';
+    $('#login-message').className = 'form-message error';
+    return;
+  }
+
+  try {
+    const result = await sendJson('/api/auth/verify-otp', {
+      identity: loginData.identity,
+      phone: loginData.phone,
+      role: loginData.role,
+      otp
+    });
+    localStorage.setItem(SESSION_KEY, JSON.stringify({ identity: result.identity, role: result.role, signedInAt: stamp() }));
+    signIn(result.identity, result.role);
+  } catch (error) {
+    $('#login-message').textContent = error.message;
+    $('#login-message').className = 'form-message error';
+  }
+});
+
 $('#logout').addEventListener('click', () => { localStorage.removeItem(SESSION_KEY); location.reload(); });
 document.querySelectorAll('.nav-item').forEach((item) => item.addEventListener('click', () => render(item.dataset.page)));
 setInterval(() => { $('#clock').textContent = new Date().toLocaleTimeString(); }, 1000);

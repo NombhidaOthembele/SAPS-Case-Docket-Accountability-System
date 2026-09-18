@@ -16,12 +16,13 @@
       <p class="muted">Access is restricted to authorised SAPS personnel. Every action is attributed to an individual account.</p>
       <form id="login-form">
         <label>Work email or officer ID<input name="identity" placeholder="officer@saps.gov.za" required /></label>
+        <label>Mobile number<input name="phone" placeholder="e.g. +27731234567" required /></label>
         <label>Password<input name="password" type="password" placeholder="Enter password" required /></label>
         <label>Role<select name="role"><option value="officer">Community Service Centre Officer</option><option value="commander">Station Commander</option><option value="investigator">Investigator</option><option value="analyst">Management Analyst</option></select></label>
-        <button class="primary" type="submit">Continue to verification</button>
+        <button class="primary" type="submit">Send OTP</button>
       </form>
       <div id="otp-panel" class="otp-panel hidden">
-        <div class="notice"><strong>Prototype OTP:</strong> <span id="demo-otp">482913</span><br><small>In production this code is delivered through the approved SAPS identity provider.</small></div>
+        <div class="notice"><strong>Demo mode:</strong> <span id="demo-otp">482913</span><br><small>When Twilio is configured, the code is delivered by SMS to the registered mobile number.</small></div>
         <form id="otp-form"><label>One-time password<input name="otp" inputmode="numeric" maxlength="6" placeholder="6-digit OTP" required /></label><button class="primary" type="submit">Verify and sign in</button></form>
       </div>
       <p id="login-message" class="form-message"></p>

@@ -1,27 +1,44 @@
-# Updated SAPS Case Accountability Portal
+# SAPS Case Accountability Portal
 
-The browser prototype now follows the requested operational flow:
+This prototype now includes a realistic officer OTP flow that can send real SMS messages through Twilio.
 
-1. **Officer sign-in and OTP verification** – role-aware login screen with a prototype OTP. Real SMS/email delivery must be integrated with an approved identity provider before production use.
-2. **Victim statement capture** – the officer records the statement and six W's. A unique CAS number is generated immediately.
-3. **Station Commander review** – newly registered cases appear in the commander's queue. Approval requires a complete six-W record and decision note.
-4. **Investigator workbench** – approved cases are routed to investigators and every progress update is recorded with the six W's.
-5. **Case analysis** – dashboard statistics show case status, station distribution, accountable events and case health.
-6. **Accountability trail** – each case action contains the actor, timestamp, action and supporting detail.
+## Setup
 
-## Run
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
 
-```bash
-npm install
-npm start
-```
+2. Copy `.env.example` to `.env` and set your Twilio credentials:
+   ```bash
+   cp .env.example .env
+   ```
 
-Open `http://localhost:3000`.
+3. Create a Twilio account and verify a WhatsApp/SMS-capable sender number.
 
-### Prototype credentials
+4. Set these values in `.env`:
+   ```env
+   TWILIO_ACCOUNT_SID=your_account_sid
+   TWILIO_AUTH_TOKEN=your_auth_token
+   TWILIO_PHONE_NUMBER=+12025550123
+   ```
 
-Any identity and password can be entered. Use the displayed OTP `482913` to complete the demo login. Select a role to view that role's workspace.
+5. Start the app:
+   ```bash
+   npm start
+   ```
 
-## Important security note
+6. Open the browser at:
+   ```text
+   http://localhost:3000
+   ```
 
-This is a classroom prototype and uses browser `localStorage`; it does not send real OTPs or provide production authentication. It also uses a restrained text watermark rather than copying an official SAPS logo asset. An authorised SAPS brand asset and identity-provider integration should be supplied and approved before deployment.
+## OTP behaviour
+
+- If Twilio credentials are configured, the app sends an OTP by SMS to the officer's mobile number.
+- If the credentials are missing, the app falls back to demo mode and logs the OTP in the terminal.
+- This is still a prototype and uses browser `localStorage` for demonstration.
+
+## Production note
+
+A real SAPS deployment must replace localStorage with a secure backend session store and a real identity provider. Do not commit real Twilio secrets to GitHub.
