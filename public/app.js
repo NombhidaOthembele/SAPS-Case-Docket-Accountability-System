@@ -1,160 +1,42 @@
-const STORAGE_KEY = 'saps-accountability-cases-v2';
-const SESSION_KEY = 'saps-accountability-session-v2';
-const OTP = '482913';
+const CASES_KEY = 'saps-case-docket-cases-v3';
+const SESSION_KEY = 'saps-case-docket-session-v3';
 const W_FIELDS = ['who', 'what', 'when', 'where', 'why', 'how'];
-const STEP_LABELS = { registration: 'Statement registered', commander_review: 'Commander review', investigation: 'Investigation update', resolution: 'Resolution' };
-
 const $ = (selector) => document.querySelector(selector);
-const getCases = () => JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-const saveCases = (items) => localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-const session = () => JSON.parse(localStorage.getItem(SESSION_KEY) || 'null');
 const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
+const getCases = () => JSON.parse(localStorage.getItem(CASES_KEY) || '[]');
+const saveCases = (cases) => localStorage.setItem(CASES_KEY, JSON.stringify(cases));
+const getSession = () => JSON.parse(localStorage.getItem(SESSION_KEY) || 'null');
+const stamp = () => new Date().toISOString();
+const id = (prefix) => `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
-function sendJson(url, data) {
-  return fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data)
-  }).then(async (response) => {
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      throw new Error(payload.error || 'Request failed.');
-    }
-    return payload;
-  });
-}
+function sendJson(url, body) { return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(async (response) => { const data = await response.json().catch(() => ({})); if (!response.ok) throw new Error(data.error || 'Request failed.'); return data; }); }
+function initials(value) { return String(value || 'OF').slice(0, 2).toUpperCase(); }
+function wsFrom(form) { return Object.fromEntries(W_FIELDS.map((field) => [field, form.get(field) || ''])); }
+function missingWs(ws) { return W_FIELDS.filter((field) => !String(ws[field]).trim()); }
+function fmt(value) { return value ? new Date(value).toLocaleString() : 'Not recorded'; }
+function maskPhone(phone) { const value = String(phone || ''); return value.length > 4 ? `${value.slice(0, 4)} •••• ${value.slice(-2)}` : value; }
 
-function makeId(prefix) { return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`; }
-function stamp() { return new Date().toISOString(); }
-function sixWsFrom(form, prefix = '') { return Object.fromEntries(W_FIELDS.map((key) => [key, form.get(`${prefix}${key}`) || ''])); }
-function missingWs(ws) { return W_FIELDS.filter((key) => !String(ws[key] || '').trim()); }
-function label(key) { return key === 'who' ? 'Who' : key.charAt(0).toUpperCase() + key.slice(1); }
+function showApp() { $('#login-view').classList.add('hidden'); $('#app-view').classList.remove('hidden'); const user = getSession(); $('#profile-name').textContent = user.identity; $('#profile-role').textContent = user.role.toUpperCase(); $('#avatar').textContent = initials(user.identity); $('#top-avatar').textContent = initials(user.identity); renderPage('home'); }
+function setMessage(element, text, type = '') { element.textContent = text; element.className = `form-message ${type}`; }
+function nav(page) { document.querySelectorAll('.nav').forEach((button) => button.classList.toggle('active', button.dataset.page === page)); renderPage(page); }
+function renderPage(page) { const titles = { home: 'Operations overview', register: 'Register a victim statement', cases: 'Case records', audit: 'Accountability log' }; $('#page-title').textContent = titles[page] || titles.home; $('#page-content').innerHTML = ({ home: dashboard, register: registration, cases: casesPage, audit: auditPage }[page] || dashboard)(); bindPage(page); }
+function stat(name, value, tone = '') { return `<div class="stat ${tone}"><span>${name}</span><strong>${value}</strong></div>`; }
+function status(value) { return `<span class="status status-${String(value).replaceAll('_', '-')}">${String(value).replaceAll('_', ' ')}</span>`; }
+function dashboard() { const cases = getCases(); const user = getSession(); return `<section class="welcome"><div><p class="eyebrow light">STATION OPERATIONS</p><h1>Good day, ${esc(user.identity)}</h1><p>Record, review and track every case with a clear chain of accountability.</p></div><div class="welcome-mark">SAPS<small>CASE CONTROL</small></div></section><div class="stats">${stat('Total cases', cases.length)}${stat('Awaiting review', cases.filter((item) => item.status === 'awaiting_commander').length, 'amber')}${stat('Active investigations', cases.filter((item) => item.status === 'investigation').length, 'blue')}${stat('Accountable events', cases.reduce((sum, item) => sum + item.audit.length, 0), 'green')}</div><section class="content-card"><div class="card-header"><div><p class="eyebrow">QUICK ACTION</p><h3>Start a new case record</h3><p class="muted">Capture the statement once and generate an official case number.</p></div><button class="btn primary small" data-go="register">Register statement →</button></div><div class="recent-list">${cases.length ? cases.slice().reverse().slice(0, 5).map(caseLine).join('') : '<div class="empty">No cases recorded yet. Start by registering a victim statement.</div>'}</div></section>`; }
+function caseLine(item) { return `<div class="case-line"><div class="case-icon">▣</div><div><strong>${esc(item.casNumber)}</strong><small>${esc(item.station)} · opened by ${esc(item.openedBy)}</small></div><div>${status(item.status)}</div><button class="text-button" data-case-id="${item.id}">View</button></div>`; }
+function sixWsMarkup() { const labels = { who: 'Who was involved?', what: 'What happened?', when: 'When did it happen?', where: 'Where did it happen?', why: 'Why did it happen?', how: 'How did it happen?' }; return `<div class="section-title"><span>02</span><div><b>Six W's incident record</b><small>Complete every field before continuing</small></div></div><div class="six-ws">${W_FIELDS.map((field) => `<label>${labels[field]}<input name="${field}" ${field === 'when' ? 'type="datetime-local"' : ''} placeholder="Enter details" required /></label>`).join('')}</div>`; }
+function registration() { return `<div class="progress"><span class="done">1 Account</span><i></i><span class="active">2 Statement</span><i></i><span>3 Confirmation</span></div><section class="content-card form-card"><div class="card-header"><div><p class="eyebrow">CASE INTAKE · STEP 02</p><h2>Register victim statement</h2><p class="muted">Capture factual information carefully. A case number will be generated after submission.</p></div><div class="form-badge">FORM<br><strong>02</strong></div></div><form id="case-form"><div class="section-title"><span>01</span><div><b>Case intake details</b><small>Identify the reporting station and complainant</small></div></div><div class="form-grid"><label>Station / facility<input name="station" placeholder="Durban Central SAPS" required /></label><label>Officer reference<input name="officerReference" placeholder="Officer number" required /></label><label>Complainant / victim name<input name="complainantName" placeholder="Full name" required /></label><label>Contact number<input name="contact" placeholder="Optional contact" /></label></div><label>Nature of offence and statement<textarea name="offenceDetails" rows="5" placeholder="Record the statement objectively and accurately..." required></textarea></label>${sixWsMarkup()}<div class="section-title"><span>03</span><div><b>Initial accountability note</b><small>Explain what was verified at registration</small></div></div><label>Officer update<textarea name="investigatorUpdate" rows="3" placeholder="What was done or verified at this stage?" required></textarea></label><div class="form-actions"><button type="button" class="btn ghost" data-go="home">Cancel</button><button type="submit" class="btn primary">Generate case number <span>→</span></button></div><p id="case-message" class="form-message"></p></form></section>`; }
+function summary(item) { return `<div class="progress"><span class="done">1 Account</span><i></i><span class="done">2 Statement</span><i></i><span class="active">3 Confirmation</span></div><section class="summary-hero"><div><p class="eyebrow light">CASE CREATED SUCCESSFULLY</p><h1>${esc(item.casNumber)}</h1><p>Your case has been registered and is awaiting Station Commander review.</p></div><div class="check">✓</div></section><div class="summary-grid"><section class="content-card"><div class="card-header"><div><p class="eyebrow">CASE SUMMARY</p><h3>Registration record</h3></div>${status(item.status)}</div><div class="detail-grid"><div><small>Opened by</small><strong>${esc(item.openedBy)}</strong></div><div><small>Officer reference</small><strong>${esc(item.officerReference)}</strong></div><div><small>Date and time opened</small><strong>${fmt(item.createdAt)}</strong></div><div><small>Station</small><strong>${esc(item.station)}</strong></div><div><small>Complainant</small><strong>${esc(item.complainantName)}</strong></div><div><small>Registration method</small><strong>Officer statement intake</strong></div></div><div class="statement"><small>Nature of offence / statement</small><p>${esc(item.offenceDetails)}</p></div></section><section class="content-card"><p class="eyebrow">SIX W'S SNAPSHOT</p><h3>What was recorded?</h3><div class="snapshot">${W_FIELDS.map((field) => `<div><b>${field.toUpperCase()}</b><span>${esc(item.sixWs[field])}</span></div>`).join('')}</div></section></div><section class="content-card timeline-card"><div class="card-header"><div><p class="eyebrow">AUDIT TRAIL</p><h3>Case accountability timeline</h3></div><span class="security"><i></i> Recorded</span></div><div class="timeline-item"><span class="timeline-dot">✓</span><div><strong>Case opened and CAS number generated</strong><p>${esc(item.openedBy)} registered the victim statement.</p><small>${fmt(item.createdAt)}</small></div></div><div class="form-actions"><button class="btn ghost" data-go="cases">View all cases</button><button class="btn primary" data-go="register">Register another case</button></div></section>`; }
+function casesPage() { const cases = getCases(); return `<section class="content-card"><div class="card-header"><div><p class="eyebrow">CASE REGISTER</p><h2>My case records</h2><p class="muted">Select a record to view who opened it, when it was opened and how it progressed.</p></div><button class="btn primary small" data-go="register">＋ New case</button></div><div class="case-table">${cases.length ? cases.slice().reverse().map((item) => `<div class="case-row" data-case-id="${item.id}"><div><strong>${esc(item.casNumber)}</strong><small>${esc(item.station)} · ${fmt(item.createdAt)}</small></div><div>${esc(item.complainantName)}</div><div>${status(item.status)}</div><span>→</span></div>`).join('') : '<div class="empty">No cases recorded yet.</div>'}</div></section>`; }
+function auditPage() { const events = getCases().flatMap((item) => item.audit.map((event) => ({ ...event, casNumber: item.casNumber }))).sort((a, b) => b.timestamp.localeCompare(a.timestamp)); return `<section class="content-card"><p class="eyebrow">TRACEABLE ACTIONS</p><h2>Accountability log</h2><p class="muted">Every important action is linked to an officer and timestamp.</p><div class="audit-list">${events.length ? events.map((event) => `<div class="audit-row"><span class="audit-check">✓</span><div><strong>${esc(event.action)}</strong><small>${esc(event.casNumber)} · ${esc(event.actor)} · ${fmt(event.timestamp)}</small></div></div>`).join('') : '<div class="empty">No accountability events recorded.</div>'}</div></section>`; }
+function openSummary(caseId) { const item = getCases().find((entry) => entry.id === caseId); if (item) $('#page-content').innerHTML = summary(item); bindPage('summary'); }
+function bindPage(page) { document.querySelectorAll('[data-go]').forEach((button) => button.addEventListener('click', () => nav(button.dataset.go))); document.querySelectorAll('[data-case-id]').forEach((element) => element.addEventListener('click', () => openSummary(element.dataset.caseId))); if (page === 'register') $('#case-form').addEventListener('submit', createCase); }
+function createCase(event) { event.preventDefault(); const form = new FormData(event.target); const ws = wsFrom(form); const missing = missingWs(ws); if (missing.length) return setMessage($('#case-message'), `Complete: ${missing.join(', ')}`, 'error'); const user = getSession(); const createdAt = stamp(); const item = { id: id('CASE'), casNumber: `CAS-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`, station: form.get('station'), officerReference: form.get('officerReference'), complainantName: form.get('complainantName'), contact: form.get('contact'), offenceDetails: form.get('offenceDetails'), openedBy: user.identity, status: 'awaiting_commander', commanderAccepted: false, createdAt, updatedAt: createdAt, sixWs: ws, events: [{ id: id('EVT'), action: 'CASE_REGISTERED', actor: user.identity, investigatorUpdate: form.get('investigatorUpdate'), timestamp: createdAt }], audit: [{ id: id('AUD'), action: 'CASE_REGISTERED', actor: user.identity, details: 'Victim statement captured and case number generated.', timestamp: createdAt }] }; const cases = getCases(); cases.push(item); saveCases(cases); $('#page-content').innerHTML = summary(item); bindPage('summary'); }
 
-function addAudit(caseItem, action, actor, details = {}) {
-  caseItem.audit.push({ id: makeId('AUD'), action, actor, timestamp: stamp(), ...details });
-}
-
-function eventFrom({ step, ws, update, actor, action }) {
-  const missing = missingWs(ws);
-  if (missing.length) throw new Error(`Complete the six W's: ${missing.map(label).join(', ')}`);
-  if (!String(update || '').trim()) throw new Error('An investigator update is required for every workflow step.');
-  return { id: makeId('EVT'), step, sixWs: ws, investigatorUpdate: update.trim(), actor, action, timestamp: stamp() };
-}
-
-function signIn(identity, role) {
-  localStorage.setItem(SESSION_KEY, JSON.stringify({ identity, role, signedInAt: stamp() }));
-  $('#login-view').classList.add('hidden'); $('#app-view').classList.remove('hidden');
-  $('#user-name').textContent = identity; $('#user-role').textContent = role.replace('_', ' ').toUpperCase();
-  $('#user-avatar').textContent = identity.slice(0, 2).toUpperCase();
-  const navButtons = document.querySelectorAll('.nav-item');
-  navButtons.forEach((item) => {
-    const isRoleSpecific = ['officer-only','commander-only','investigator-only','analyst-only'].some((cls) => item.classList.contains(cls));
-    const allowed = !isRoleSpecific || item.classList.contains(`${role}-only`);
-    item.classList.toggle('hidden', !allowed);
-    if (item.classList.contains(`${role}-only`) || !isRoleSpecific) item.classList.remove('hidden');
-  });
-  render('dashboard');
-}
-
-function render(page = 'dashboard') {
-  const current = session(); if (!current) return;
-  document.querySelectorAll('.nav-item').forEach((item) => item.classList.toggle('active', item.dataset.page === page));
-  const titles = { dashboard: 'Operations overview', register: 'Victim statement registration', review: 'Commander acceptance queue', investigation: 'Investigator workbench', analytics: 'Case analysis & statistics', audit: 'Accountability trail' };
-  $('#page-title').textContent = titles[page] || titles.dashboard;
-  const pages = { dashboard: renderDashboard, register: renderRegister, review: renderReview, investigation: renderInvestigation, analytics: renderAnalytics, audit: renderAudit };
-  $('#page-content').innerHTML = pages[page]();
-  bindPage(page);
-}
-
-function metric(labelText, value, tone = '') { return `<div class="metric ${tone}"><span>${labelText}</span><strong>${value}</strong></div>`; }
-function statusBadge(status) { return `<span class="status status-${status.replaceAll('_', '-')}">${status.replaceAll('_', ' ')}</span>`; }
-function sixWsCard(ws) { return `<div class="six-ws-grid">${W_FIELDS.map((key) => `<div><b>${label(key)}</b><span>${esc(ws[key])}</span></div>`).join('')}</div>`; }
-function caseRow(item, action = '') { return `<tr><td><strong>${esc(item.casNumber)}</strong><small>${esc(item.station)}</small></td><td>${esc(item.offenceDetails)}</td><td>${statusBadge(item.status)}</td><td>${item.events.length}</td><td>${action}</td></tr>`; }
-
-function renderDashboard() {
-  const items = getCases(); const pending = items.filter((item) => item.status === 'awaiting_commander').length; const active = items.filter((item) => item.status === 'assigned' || item.status === 'investigation').length; const accepted = items.filter((item) => item.commanderAccepted).length;
-  return `<section class="hero"><div><p class="eyebrow">LIVE ACCOUNTABILITY BOARD</p><h1>Good morning, ${esc(session().identity)}</h1><p>Every registration, review and investigation update is time-stamped and attributable.</p></div><div class="hero-seal">SAPS<br><small>CASE CONTROL</small></div></section><div class="metrics">${metric('Total cases', items.length)}${metric('Awaiting commander', pending, 'amber')}${metric('Approved cases', accepted, 'green')}${metric('Active investigations', active, 'blue')}</div><section class="panel"><div class="panel-heading"><div><h3>Recent case activity</h3><p class="muted">The latest accountable actions across your station.</p></div><button class="ghost" data-go="audit">View full trail →</button></div><div class="table-wrap"><table><thead><tr><th>Case</th><th>Offence</th><th>Status</th><th>Events</th><th>Last action</th></tr></thead><tbody>${items.length ? items.slice().reverse().slice(0, 8).map((item) => caseRow(item, `<small>${esc(item.events.at(-1)?.action || '')}</small>`)).join('') : '<tr><td colspan="5" class="empty">No cases have been registered.</td></tr>'}</tbody></table></div></section>`;
-}
-
-function sixWsForm(prefix = '', values = {}) { return `<div class="section-label">Six W's control record <span>All six fields are mandatory</span></div><div class="six-ws-form">${W_FIELDS.map((key) => `<label><span>${label(key)}</span><input name="${prefix}${key}" value="${esc(values[key] || '')}" ${key === 'when' ? 'type="datetime-local"' : ''} placeholder="Record ${key}..." required /></label>`).join('')}</div>`; }
-
-function renderRegister() { return `<section class="panel form-panel"><div class="panel-heading"><div><p class="eyebrow">STEP 01 · COMMUNITY SERVICE CENTRE</p><h3>Capture victim statement</h3><p class="muted">The statement creates the official case record. Do not use real personal information in this prototype.</p></div><span class="step-number">01</span></div><form id="register-form"><div class="grid two"><label>Station / facility<input name="station" placeholder="Durban Central SAPS" required /></label><label>Officer reference<input name="officerReference" placeholder="CSC-001" required /></label></div><div class="grid two"><label>Victim / complainant name<input name="complainantName" placeholder="Full name" required /></label><label>Preferred contact<input name="contact" placeholder="Contact details" /></label></div><label>Victim statement / offence details<textarea name="offenceDetails" rows="5" placeholder="Capture the statement accurately and objectively..." required></textarea></label>${sixWsForm()}<label>Investigator update <textarea name="investigatorUpdate" rows="3" placeholder="Record what was verified or done at this step" required></textarea></label><button class="primary" type="submit">Create case and generate CAS number</button><p id="register-message" class="form-message"></p></form></section>`; }
-
-function renderReview() { const items = getCases().filter((item) => item.status === 'awaiting_commander'); return `<section class="panel"><div class="panel-heading"><div><p class="eyebrow">STEP 02 · STATION COMMANDER</p><h3>Evaluate six-W compliance</h3><p class="muted">Approval is blocked until the registration record is complete and accountable.</p></div><span class="count-pill">${items.length} pending</span></div>${items.length ? items.map((item) => `<article class="review-card"><div class="case-heading"><div><h3>${esc(item.casNumber)}</h3><p>${esc(item.complainantName)} · ${esc(item.station)}</p></div>${statusBadge(item.status)}</div><p><b>Statement:</b> ${esc(item.offenceDetails)}</p><h4>Registration six W's</h4>${sixWsCard(item.events[0].sixWs)}<p class="update"><b>Investigator update:</b> ${esc(item.events[0].investigatorUpdate)}</p><form class="review-form" data-case-id="${item.id}">${sixWsForm('review', { where: item.station })}<label>Commander decision note<textarea name="decisionNote" rows="2" required placeholder="Explain the acceptance decision..."></textarea></label><div class="button-row"><button class="primary" name="decision" value="approve">Approve and assign investigators</button><button class="danger-outline" name="decision" value="return">Return for correction</button></div><p class="form-message"></p></form></article>`).join('') : '<div class="empty-state"><strong>No cases waiting for review</strong><p>New registrations will appear here with their generated CAS number.</p></div>'}</section>`; }
-
-function renderInvestigation() { const items = getCases().filter((item) => item.commanderAccepted); return `<section class="panel"><div class="panel-heading"><div><p class="eyebrow">STEP 03 · INVESTIGATIONS</p><h3>Investigator workbench</h3><p class="muted">Approved cases are assigned here. Every update carries its own six-W accountability record.</p></div></div>${items.length ? items.map((item) => `<article class="investigation-card"><div class="case-heading"><div><h3>${esc(item.casNumber)}</h3><p>${esc(item.offenceDetails)}</p></div>${statusBadge(item.status)}</div><p><b>Assigned team:</b> ${esc(item.investigationTeam || 'Pending team assignment')}</p><form class="investigation-form" data-case-id="${item.id}"><div class="grid two"><label>Lead investigator<input name="lead" value="${esc(item.investigationTeam || '')}" required /></label><label>Next review date<input type="date" name="reviewDate" required /></label></div>${sixWsForm('investigation')}<label>Investigator progress update<textarea name="investigatorUpdate" rows="3" required placeholder="What was done, discovered, or handed over?"></textarea></label><button class="primary">Save accountable update</button><p class="form-message"></p></form></article>`).join('') : '<div class="empty-state"><strong>No approved cases</strong><p>Commander-approved cases will be routed to the investigation team.</p></div>'}</section>`; }
-
-function renderAnalytics() { const items = getCases(); const byStatus = items.reduce((out, item) => { out[item.status] = (out[item.status] || 0) + 1; return out; }, {}); const stations = [...new Set(items.map((item) => item.station))]; return `<section class="metrics">${metric('Cases this period', items.length)}${metric('Average timeline events', items.length ? (items.reduce((sum, item) => sum + item.events.length, 0) / items.length).toFixed(1) : '0')}${metric('Stations represented', stations.length)}${metric('Auditable actions', items.reduce((sum, item) => sum + item.audit.length, 0), 'green')}</section><div class="analytics-grid"><section class="panel"><h3>Cases by status</h3>${Object.keys(byStatus).length ? Object.entries(byStatus).map(([key, value]) => `<div class="bar-row"><span>${key.replaceAll('_', ' ')}</span><div><i style="width:${Math.max(8, (value / Math.max(items.length, 1)) * 100)}%"></i></div><b>${value}</b></div>`).join('') : '<p class="empty">No data available.</p>'}</section><section class="panel"><h3>Accountability health</h3><div class="health-score">${items.length ? '100%' : '—'}<small>records with traceable events</small></div><p class="muted">Each action records the actor, timestamp, six W's and investigator update before progressing.</p></section></div><section class="panel"><h3>Station distribution</h3><div class="station-list">${stations.map((station) => `<div><span>${esc(station)}</span><b>${items.filter((item) => item.station === station).length}</b></div>`).join('') || '<p class="empty">No stations recorded.</p>'}</div></section>`; }
-
-function renderAudit() { const audit = getCases().flatMap((item) => item.audit.map((event) => ({ ...event, casNumber: item.casNumber }))).sort((a, b) => b.timestamp.localeCompare(a.timestamp)); return `<section class="panel"><div class="panel-heading"><div><p class="eyebrow">IMMUTABLE ACTIVITY VIEW</p><h3>Accountability trail</h3><p class="muted">A chronological record of who did what, when and to which case.</p></div><span class="secure-status">● Audit enabled</span></div><div class="audit-list">${audit.length ? audit.map((event) => `<div class="audit-item"><div class="audit-icon">✓</div><div><strong>${esc(event.action)}</strong><p>${esc(event.casNumber)} · ${esc(event.actor)}</p><small>${new Date(event.timestamp).toLocaleString()} ${event.details ? `· ${esc(event.details)}` : ''}</small></div></div>`).join('') : '<p class="empty">No activity recorded.</p>'}</div></section>`; }
-
-function bindPage(page) {
-  document.querySelectorAll('[data-go]').forEach((button) => button.addEventListener('click', () => render(button.dataset.go)));
-  document.querySelectorAll('.review-form').forEach((form) => form.addEventListener('submit', commanderReview));
-  document.querySelectorAll('.investigation-form').forEach((form) => form.addEventListener('submit', investigatorUpdate));
-  if (page === 'register') $('#register-form')?.addEventListener('submit', registerCase);
-}
-
-function registerCase(event) { event.preventDefault(); const form = new FormData(event.target); const ws = sixWsFrom(form); try { const item = { id: makeId('CASE'), casNumber: `CAS-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`, station: form.get('station'), officerReference: form.get('officerReference'), complainantName: form.get('complainantName'), contact: form.get('contact'), offenceDetails: form.get('offenceDetails'), status: 'awaiting_commander', commanderAccepted: false, createdAt: stamp(), events: [eventFrom({ step: 'registration', ws, update: form.get('investigatorUpdate'), actor: session().identity, action: 'CASE_REGISTERED' })], audit: [] }; addAudit(item, 'CASE_REGISTERED', session().identity, { details: 'Victim statement captured and CAS number generated.' }); const items = getCases(); items.push(item); saveCases(items); event.target.reset(); $('#register-message').textContent = `Case ${item.casNumber} created and sent to the Station Commander.`; $('#register-message').className = 'form-message success'; } catch (error) { $('#register-message').textContent = error.message; $('#register-message').className = 'form-message error'; } }
-
-function commanderReview(event) { event.preventDefault(); const form = new FormData(event.target); const items = getCases(); const item = items.find((entry) => entry.id === event.target.dataset.caseId); const decision = event.submitter.value; const message = event.target.querySelector('.form-message'); try { const ws = sixWsFrom(form, 'review'); if (decision === 'return') { item.status = 'returned_for_correction'; addAudit(item, 'CASE_RETURNED', session().identity, { details: form.get('decisionNote') }); saveCases(items); render('review'); return; } const reviewEvent = eventFrom({ step: 'commander_review', ws, update: form.get('decisionNote'), actor: session().identity, action: 'COMMANDER_APPROVED' }); item.events.push(reviewEvent); item.commanderAccepted = true; item.status = 'assigned'; item.investigationTeam = 'Investigation team to be assigned'; addAudit(item, 'COMMANDER_APPROVED', session().identity, { details: 'Six-W review passed; routed to investigators.' }); saveCases(items); render('review'); } catch (error) { message.textContent = error.message; message.className = 'form-message error'; } }
-
-function investigatorUpdate(event) { event.preventDefault(); const form = new FormData(event.target); const items = getCases(); const item = items.find((entry) => entry.id === event.target.dataset.caseId); try { item.investigationTeam = form.get('lead'); const ws = sixWsFrom(form, 'investigation'); item.events.push(eventFrom({ step: 'investigation', ws, update: form.get('investigatorUpdate'), actor: session().identity, action: 'INVESTIGATOR_UPDATE' })); item.status = 'investigation'; addAudit(item, 'INVESTIGATOR_UPDATE', session().identity, { details: form.get('investigatorUpdate') }); saveCases(items); render('investigation'); } catch (error) { const message = event.target.querySelector('.form-message'); message.textContent = error.message; message.className = 'form-message error'; } }
-
-$('#login-form').addEventListener('submit', async (event) => {
-  event.preventDefault();
-  const form = new FormData(event.target);
-  const identity = form.get('identity');
-  const phone = form.get('phone');
-  const role = form.get('role');
-  const password = form.get('password');
-
-  if (!identity || !phone || !password || !role) {
-    $('#login-message').textContent = 'Please complete all fields.';
-    $('#login-message').className = 'form-message error';
-    return;
-  }
-
-  try {
-    await sendJson('/api/auth/request-otp', { identity, phone, role, password });
-    window.pendingLogin = { identity, phone, role, password };
-    $('#otp-panel').classList.remove('hidden');
-    $('#login-message').textContent = 'Verification SMS sent successfully. Use the code shown below in demo mode or the one sent to your phone in live mode.';
-    $('#login-message').className = 'form-message success';
-  } catch (error) {
-    $('#login-message').textContent = error.message;
-    $('#login-message').className = 'form-message error';
-  }
-});
-
-$('#otp-form').addEventListener('submit', async (event) => {
-  event.preventDefault();
-  const form = new FormData(event.target);
-  const otp = form.get('otp');
-  const loginData = window.pendingLogin;
-
-  if (!loginData) {
-    $('#login-message').textContent = 'Please request an OTP before verifying.';
-    $('#login-message').className = 'form-message error';
-    return;
-  }
-
-  try {
-    const result = await sendJson('/api/auth/verify-otp', {
-      identity: loginData.identity,
-      phone: loginData.phone,
-      role: loginData.role,
-      otp
-    });
-    localStorage.setItem(SESSION_KEY, JSON.stringify({ identity: result.identity, role: result.role, signedInAt: stamp() }));
-    signIn(result.identity, result.role);
-  } catch (error) {
-    $('#login-message').textContent = error.message;
-    $('#login-message').className = 'form-message error';
-  }
-});
-
+$('#login-form').addEventListener('submit', async (event) => { event.preventDefault(); const form = new FormData(event.target); const message = $('#login-message'); try { await sendJson('/api/auth/request-otp', { identity: form.get('identity'), phone: form.get('phone'), role: form.get('role') }); window.pendingLogin = { identity: form.get('identity'), phone: form.get('phone'), role: form.get('role') }; $('#masked-phone').textContent = maskPhone(form.get('phone')); $('#otp-panel').classList.remove('hidden'); setMessage(message, 'Verification code sent. Check your phone.', 'success'); } catch (error) { setMessage(message, error.message, 'error'); } });
+$('#otp-form').addEventListener('submit', async (event) => { event.preventDefault(); const form = new FormData(event.target); const login = window.pendingLogin; try { const result = await sendJson('/api/auth/verify-otp', { ...login, otp: form.get('otp') }); localStorage.setItem(SESSION_KEY, JSON.stringify({ identity: result.identity, role: result.role, signedInAt: stamp() })); showApp(); } catch (error) { setMessage($('#login-message'), error.message, 'error'); } });
+$('#back-login').addEventListener('click', () => { $('#otp-panel').classList.add('hidden'); $('#login-message').textContent = ''; });
 $('#logout').addEventListener('click', () => { localStorage.removeItem(SESSION_KEY); location.reload(); });
-document.querySelectorAll('.nav-item').forEach((item) => item.addEventListener('click', () => render(item.dataset.page)));
-setInterval(() => { $('#clock').textContent = new Date().toLocaleTimeString(); }, 1000);
-if (session()) signIn(session().identity, session().role);
+document.querySelectorAll('.nav').forEach((button) => button.addEventListener('click', () => nav(button.dataset.page)));
+setInterval(() => { if ($('#clock')) $('#clock').textContent = new Date().toLocaleString(); }, 1000);
+if (getSession()) showApp();
